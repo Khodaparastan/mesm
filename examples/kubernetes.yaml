@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: secret-manager
+  labels:
+    app: secret-manager
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: secret-manager
+  template:
+    metadata:
+      labels:
+        app: secret-manager
+    spec:
+      serviceAccountName: secret-manager-sa
+      containers:
+        - name: secret-manager
+          image: secret-manager:latest
+          ports:
+            - containerPort: 8000
+          env:
+            - name: LOG_LEVEL
+              value: "20"
+            - name: DEFAULT_ENVIRONMENT
+              value: "production"
+            - name: ENABLE_CACHING
+              value: "true"
+            - name: CACHE_TTL
+              value: "300"
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: secret-manager-service
+spec:
+  selector:
+    app: secret-manager
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8000
+  type: LoadBalancer

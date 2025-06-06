@@ -1,0 +1,52 @@
+---
+services:
+  secret-manager:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - LOG_LEVEL=20
+      - DEFAULT_ENVIRONMENT=production
+      - ENABLE_CACHING=true
+      - ENABLE_POOLING=true
+      - CACHE_TTL=300
+      - CACHE_SIZE=1000
+      - MAX_CONNECTIONS=10
+      - STRICT_ISOLATION=true
+      # Mount service account key
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/secrets/service-account.json
+    volumes:
+      - ./secrets:/app/secrets:ro
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  # Optional: Prometheus for metrics
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/etc/prometheus/console_libraries"
+      - "--web.console.templates=/etc/prometheus/consoles"
+
+  # Optional: Grafana for visualization
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-storage:/var/lib/grafana
+
+volumes:
+  grafana-storage:
